@@ -102,16 +102,22 @@ def fetch_screen_time_data():
         return cursor.fetchall()
 
 def fetch_apps():
-    """Fetch apps ordered by favorite status and then name, including category"""
+    """Fetch apps ordered by favorite status and then name"""
     with sqlite3.connect(get_db_path()) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT a.name, a.is_favorite, c.name as category_name
-            FROM apps a
-            JOIN categories c ON a.category_id = c.id
-            ORDER BY a.is_favorite DESC, a.name
+            SELECT name, is_favorite 
+            FROM apps 
+            ORDER BY is_favorite DESC, name
         ''')
         return cursor.fetchall()
+
+def fetch_app_names():
+    """Fetch just app names"""
+    with sqlite3.connect(get_db_path()) as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT name FROM apps ORDER BY name')
+        return [row[0] for row in cursor.fetchall()]
 
 def get_category_id(name):
     with sqlite3.connect(get_db_path()) as conn:
@@ -201,10 +207,10 @@ def insert_sample_data():
         conn.commit()
 
 def fetch_categories():
-    """Fetch all category names"""
+    """Fetch all unique category names"""
     with sqlite3.connect(get_db_path()) as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT name FROM categories ORDER BY name')
+        cursor.execute('SELECT DISTINCT name FROM categories ORDER BY name')
         return [row[0] for row in cursor.fetchall()]
 
 def toggle_app_favorite(app_name):
@@ -217,3 +223,15 @@ def toggle_app_favorite(app_name):
             WHERE name = ?
         ''', (app_name,))
         conn.commit()
+
+def fetch_apps_with_categories():
+    """Fetch apps with categories, ordered by favorite status and then name"""
+    with sqlite3.connect(get_db_path()) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT a.name, a.is_favorite, c.name as category_name
+            FROM apps a
+            JOIN categories c ON a.category_id = c.id
+            ORDER BY a.is_favorite DESC, a.name
+        ''')
+        return cursor.fetchall()

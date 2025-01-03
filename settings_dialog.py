@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from database import add_category, add_app, get_category_id, fetch_apps, fetch_categories, toggle_app_favorite
+from database import add_category, add_app, get_category_id, fetch_apps_with_categories, fetch_categories, toggle_app_favorite
 
 class SettingsDialog:
     def __init__(self, parent):
@@ -109,11 +109,11 @@ class SettingsDialog:
             self.apps_tree.delete(item)
         
         # Fetch and insert apps
-        apps = fetch_apps()
-        for app, is_favorite, category in apps:
+        apps = fetch_apps_with_categories()
+        for app_name, is_favorite, category in apps:
             self.apps_tree.insert('', 'end', values=(
                 '⭐' if is_favorite else '☆',
-                app,
+                app_name,
                 category
             ))
 

@@ -12,6 +12,7 @@ class BatchEntryDialog:
         self.dialog.geometry("600x600")
         
         self.submit_callback = submit_callback
+        self.apps = apps  # Store apps list
         self.entries = []
 
         # Date frame with total
@@ -90,12 +91,7 @@ class BatchEntryDialog:
             self.dialog.destroy()
         ))
 
-        # Headers
-        ttk.Label(self.scrollable_frame, text="⭐", width=3).grid(row=0, column=0, padx=2)
-        ttk.Label(self.scrollable_frame, text="App", width=20).grid(row=0, column=1, padx=5)
-        ttk.Label(self.scrollable_frame, text="Time (minutes)", width=15).grid(row=0, column=2, padx=5)
-
-        # Create entry rows for each app
+        # Create entries
         self.create_entries()
 
         # Pack canvas and scrollbar
@@ -187,8 +183,17 @@ class BatchEntryDialog:
 
     def create_entries(self):
         """Create entry rows for apps"""
-        apps = fetch_apps()
+        apps_data = fetch_apps()  # Get fresh data with favorites
+        apps_dict = {name: is_favorite for name, is_favorite in apps_data}  # Create lookup dict
         self.entries = []
+
+        # Create headers
+        ttk.Label(self.scrollable_frame, text="⭐", width=3).grid(row=0, column=0, padx=2)
+        ttk.Label(self.scrollable_frame, text="App", width=20).grid(row=0, column=1, padx=5)
+        ttk.Label(self.scrollable_frame, text="Time (minutes)", width=15).grid(row=0, column=2, padx=5)
+
+        # Sort apps by favorite status and then alphabetically
+        sorted_apps = sorted(self.apps, key=lambda x: (-apps_dict.get(x, False), x))
 
         def validate_number(P):
             """Validate entry to only allow numbers"""
@@ -206,15 +211,17 @@ class BatchEntryDialog:
                     total += int(value)
             self.total_label.config(text=format_time_display(total))
 
-        for i, (app, is_favorite) in enumerate(apps, 1):
+        # Create entry rows
+        for i, app_name in enumerate(sorted_apps, 1):
             # Favorite toggle button
+            is_favorite = apps_dict.get(app_name, False)
             fav_text = "⭐" if is_favorite else "☆"
             fav_btn = ttk.Button(self.scrollable_frame, text=fav_text, width=3,
-                                command=lambda a=app, b=fav_text: self.toggle_favorite(a, b))
+                                command=lambda a=app_name, b=fav_text: self.toggle_favorite(a, b))
             fav_btn.grid(row=i, column=0, padx=2, pady=2)
             
             # App name and time entry
-            app_label = ttk.Label(self.scrollable_frame, text=app, width=20)
+            app_label = ttk.Label(self.scrollable_frame, text=app_name, width=20)
             time_entry = ttk.Entry(self.scrollable_frame, width=15, 
                                  validate='key', 
                                  validatecommand=(vcmd, '%P'))
@@ -223,7 +230,7 @@ class BatchEntryDialog:
             time_entry.grid(row=i, column=2, padx=5, pady=2)
             
             time_entry.bind('<Return>', lambda e, idx=i: self.focus_next(idx))
-            self.entries.append((app, time_entry, fav_btn)) 
+            self.entries.append((app_name, time_entry, fav_btn))
 
             # Bind to update total when value changes
             time_entry.bind('<KeyRelease>', update_total)
