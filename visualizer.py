@@ -137,6 +137,23 @@ def create_scrollable_frame(parent):
     return scrollable_frame
 
 def display_visualization(data):
+    class Visualizer:
+        def __init__(self):
+            self.show_percentage = False
+            self.display_var = tk.BooleanVar(value=False)
+
+        def toggle_display_mode(self):
+            self.show_percentage = not self.show_percentage
+            update_visualization()
+
+        def format_value(self, value, total_minutes):
+            minutes = int(total_minutes * value / 100)
+            if self.show_percentage:
+                return f'{value:.1f}%'
+            else:
+                return format_time(minutes)
+
+    viz = Visualizer()
     # Create DataFrame
     df = pd.DataFrame(data, columns=["App Name", "Category Name", "Time Spent", "Date"])
     df["Date"] = pd.to_datetime(df["Date"])
@@ -232,7 +249,7 @@ def display_visualization(data):
         main_apps_pie.plot(
             kind='pie',
             ax=axs[0],
-            autopct=lambda pct: format_autopct(pct, main_apps_pie.sum()),
+            autopct=lambda pct: viz.format_value(pct, main_apps_pie.sum()),
             title='Time by App',
             ylabel=''
         )
@@ -241,7 +258,7 @@ def display_visualization(data):
         categories_summary.plot(
             kind='pie',
             ax=axs[1],
-            autopct=lambda pct: format_autopct(pct, categories_summary.sum()),
+            autopct=lambda pct: viz.format_value(pct, categories_summary.sum()),
             title='Time by Category',
             ylabel=''
         )
@@ -381,6 +398,16 @@ def display_visualization(data):
     canvas = FigureCanvasTkAgg(fig, master=plot_frame)
     canvas_widget = canvas.get_tk_widget()
     canvas_widget.pack(fill=tk.BOTH, expand=True, padx=10)  # Added padding
+
+    # Add checkbox to nav_frame
+    display_checkbox = ttk.Checkbutton(
+        nav_frame, 
+        text="Show percentages", 
+        variable=viz.display_var,
+        command=viz.toggle_display_mode
+    )
+    display_checkbox.state(['!selected', '!alternate'])
+    display_checkbox.pack(side=tk.RIGHT, padx=10)
 
     # Initialize Visualization
     update_visualization()
