@@ -131,6 +131,11 @@ class SettingsDialog:
                 color,
                 '■'  # Use a colored square symbol
             ))
+
+            name_tag = f'name_{name}'
+            self.categories_tree.tag_configure(name_tag, foreground='black')
+            self.categories_tree.item(item, tags=(name_tag,))
+
             # Only color the preview column
             self.categories_tree.tag_configure(f'preview_{color}', foreground=color)
             self.categories_tree.set(item, 'preview', '■')
