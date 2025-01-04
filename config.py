@@ -1,5 +1,5 @@
 # Database configurations
-DEBUG_MODE = True  # Switch between debug and production
+DEBUG_MODE = False  # Switch between debug and production
 
 DB_CONFIG = {
     'debug': {

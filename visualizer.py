@@ -17,8 +17,8 @@ WINDOW_HEIGHT = 800          # Main window height
 CANVAS_WIDTH = 960           # Scrollable canvas width
 CHART_SIZE = (9, 4)         # Size of the figure for charts (width, height)
 HISTORY_CHART_SIZE = (9, 1)     # Size of the bar chart figure
-HISTORY_PERIODS = 10         # Number of periods to show in history
-EMPTY_PERIODS = 3           # Number of empty periods at the end of history chart
+HISTORY_PERIODS = 17         # Number of periods to show in history
+EMPTY_PERIODS = 5           # Number of empty periods at the end of history chart
 TITLE_FONT = ("Arial", 16, "bold")
 SUBTITLE_FONT = ("Arial", 14)
 NORMAL_FONT = ("Arial", 10)
@@ -152,7 +152,11 @@ def display_visualization(data):
             update_visualization()
 
         def format_value(self, value, total_minutes):
-            minutes = int(total_minutes * value / 100)
+            # Round the percentage first to avoid floating point errors
+            value = round(value, 1)
+            # Calculate minutes and round to nearest integer
+            minutes = round((total_minutes * value) / 100)
+            
             if self.show_percentage:
                 return f'{value:.1f}%'
             else:
@@ -182,7 +186,7 @@ def display_visualization(data):
             
             # Show items up to current limit
             for item, time in list(items.items())[:shown_items[0]]:
-                percentage = (time / total_time) * 100
+                percentage = (time / total_time) * 100 if total_time > 0 else 0
                 ttk.Label(items_frame, 
                          text=f"{item}: {format_time(time)} ({percentage:.1f}%)", 
                          font=NORMAL_FONT).pack(anchor="w")
@@ -232,36 +236,26 @@ def display_visualization(data):
         nonlocal categories_summary
         start_date, end_date = get_date_range(current_date[0], current_span[0])
         filtered_df = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
+        filtered_df = filtered_df.copy()  # Create a copy to avoid SettingWithCopyWarning
+        filtered_df["Time Spent"] = filtered_df["Time Spent"].astype(int)  # Force integer values
 
         # Clear previous data
         for widget in summary_frame.winfo_children():
             widget.destroy()
 
         # Calculate full categories summary first
-        categories_summary = filtered_df.groupby("Category Name")["Time Spent"].sum().sort_values(ascending=False)
+        categories_summary = filtered_df.groupby("Category Name")["Time Spent"].sum().astype(int)
+        categories_summary = categories_summary.sort_values(ascending=False)
         
-        # Handle empty data case
-        if categories_summary.empty:
-            date_label = ttk.Label(summary_frame, 
-                                 text=f"No data for period: {format_date_range(start_date, end_date, current_span[0])}", 
-                                 font=TITLE_FONT)
-            date_label.pack(pady=5)
-            
-            # Clear plots
-            for ax in axs:
-                ax.clear()
-                ax.set_xticks([])
-                ax.set_yticks([])
-            canvas.draw()
-            return
-
         # Filter apps by selected category if one is selected
         if viz.selected_category:
             filtered_df = filtered_df[filtered_df["Category Name"] == viz.selected_category]
-            apps_summary = filtered_df.groupby("App Name")["Time Spent"].sum().sort_values(ascending=False)
+            apps_summary = filtered_df.groupby("App Name")["Time Spent"].sum().astype(int)
+            apps_summary = apps_summary.sort_values(ascending=False)
             total_time = filtered_df["Time Spent"].sum()
         else:
-            apps_summary = filtered_df.groupby("App Name")["Time Spent"].sum().sort_values(ascending=False)
+            apps_summary = filtered_df.groupby("App Name")["Time Spent"].sum().astype(int)
+            apps_summary = apps_summary.sort_values(ascending=False)
             total_time = filtered_df["Time Spent"].sum()
 
         # Group small app percentages into "Other" (only for pie chart)
@@ -420,11 +414,19 @@ def display_visualization(data):
                 current = current.replace(year=current.year - 1)
             dates.insert(0, current)
         
+        # Create a copy of df and convert to int at the start
+        df_copy = df.copy()
+        df_copy["Time Spent"] = df_copy["Time Spent"].astype(int)
+        
         # Get total screen time for each period
         totals = []
         for date in dates:
             period_start, period_end = get_date_range(date, span)
-            period_data = df[(df["Date"] >= period_start) & (df["Date"] <= period_end)]
+            period_data = df_copy[(df_copy["Date"] >= period_start) & (df_copy["Date"] <= period_end)]
+            
+            if viz.selected_category:
+                period_data = period_data[period_data["Category Name"] == viz.selected_category]
+            
             total_minutes = period_data["Time Spent"].sum()
             totals.append(total_minutes)
 
@@ -470,7 +472,7 @@ def display_visualization(data):
                         else:  # Year
                             date_str = str(dates[i].year)
                         
-                        # Position tooltip above the bar
+                        # Use the exact same value without any additional processing
                         tooltip_text = f"{date_str}\n{format_time(totals[i])}"
                         ax.text(i, totals[i], tooltip_text,
                                ha='center', va='bottom',
