@@ -18,6 +18,7 @@ CANVAS_WIDTH = 960           # Scrollable canvas width
 CHART_SIZE = (9, 4)         # Size of the figure for charts (width, height)
 HISTORY_CHART_SIZE = (9, 1)     # Size of the bar chart figure
 HISTORY_PERIODS = 10         # Number of periods to show in history
+EMPTY_PERIODS = 3           # Number of empty periods at the end of history chart
 TITLE_FONT = ("Arial", 16, "bold")
 SUBTITLE_FONT = ("Arial", 14)
 NORMAL_FONT = ("Arial", 10)
@@ -144,6 +145,7 @@ def display_visualization(data):
         def __init__(self):
             self.show_percentage = False
             self.display_var = tk.BooleanVar(value=False)
+            self.selected_category = None
 
         def toggle_display_mode(self):
             self.show_percentage = not self.show_percentage
@@ -157,6 +159,8 @@ def display_visualization(data):
                 return format_time(minutes)
 
     viz = Visualizer()
+    categories_summary = None  # Initialize at module level
+
     # Create DataFrame
     df = pd.DataFrame(data, columns=["App Name", "Category Name", "Time Spent", "Date"])
     df["Date"] = pd.to_datetime(df["Date"])
@@ -208,7 +212,24 @@ def display_visualization(data):
         show_items()
         return frame
 
+    def on_category_click(event):
+        nonlocal categories_summary
+        if event.inaxes == axs[1]:
+            # Get the clicked wedge
+            for wedge in axs[1].patches:
+                contains, _ = wedge.contains(event)
+                if contains:
+                    # Get category from wedge label
+                    clicked_category = wedge.get_label()
+                    if viz.selected_category == clicked_category:
+                        viz.selected_category = None
+                    else:
+                        viz.selected_category = clicked_category
+                    update_visualization()
+                    break
+
     def update_visualization():
+        nonlocal categories_summary
         start_date, end_date = get_date_range(current_date[0], current_span[0])
         filtered_df = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
 
@@ -216,10 +237,32 @@ def display_visualization(data):
         for widget in summary_frame.winfo_children():
             widget.destroy()
 
-        # Calculate summaries
-        total_time = filtered_df["Time Spent"].sum()
-        apps_summary = filtered_df.groupby("App Name")["Time Spent"].sum().sort_values(ascending=False)
+        # Calculate full categories summary first
         categories_summary = filtered_df.groupby("Category Name")["Time Spent"].sum().sort_values(ascending=False)
+        
+        # Handle empty data case
+        if categories_summary.empty:
+            date_label = ttk.Label(summary_frame, 
+                                 text=f"No data for period: {format_date_range(start_date, end_date, current_span[0])}", 
+                                 font=TITLE_FONT)
+            date_label.pack(pady=5)
+            
+            # Clear plots
+            for ax in axs:
+                ax.clear()
+                ax.set_xticks([])
+                ax.set_yticks([])
+            canvas.draw()
+            return
+
+        # Filter apps by selected category if one is selected
+        if viz.selected_category:
+            filtered_df = filtered_df[filtered_df["Category Name"] == viz.selected_category]
+            apps_summary = filtered_df.groupby("App Name")["Time Spent"].sum().sort_values(ascending=False)
+            total_time = filtered_df["Time Spent"].sum()
+        else:
+            apps_summary = filtered_df.groupby("App Name")["Time Spent"].sum().sort_values(ascending=False)
+            total_time = filtered_df["Time Spent"].sum()
 
         # Group small app percentages into "Other" (only for pie chart)
         total_apps_time = apps_summary.sum()
@@ -227,15 +270,16 @@ def display_visualization(data):
         other_time = apps_summary[apps_summary/total_apps_time * 100 < PIE_CHART_THRESHOLD].sum()
         
         if other_time > 0:
-            main_apps_pie = main_apps.copy()  # Create a copy for the pie chart
+            main_apps_pie = main_apps.copy()
             main_apps_pie['Other'] = other_time
         else:
             main_apps_pie = main_apps
 
         # Create summary frames
-        date_label = ttk.Label(summary_frame, 
-                             text=f"Period: {format_date_range(start_date, end_date, current_span[0])}", 
-                             font=TITLE_FONT)
+        date_text = f"Period: {format_date_range(start_date, end_date, current_span[0])}"
+        if viz.selected_category:
+            date_text += f" (Filtered by: {viz.selected_category})"
+        date_label = ttk.Label(summary_frame, text=date_text, font=TITLE_FONT)
         date_label.pack(pady=5)
         
         total_label = ttk.Label(summary_frame, 
@@ -272,15 +316,23 @@ def display_visualization(data):
         categories = fetch_categories()
         category_colors = {name: color for name, color in categories}
 
-        # Categories pie chart with colors
-        categories_summary.plot(
-            kind='pie',
-            ax=axs[1],
-            autopct=lambda pct: viz.format_value(pct, categories_summary.sum()),
-            title='Time by Category',
-            ylabel='',
-            colors=[category_colors.get(cat, '#808080') for cat in categories_summary.index]
-        )
+        # Create explode array for pie chart - make selected category stand out
+        explode = [0.1 if cat == viz.selected_category else 0 for cat in categories_summary.index]
+
+        # Categories pie chart with colors and explode effect
+        if len(categories_summary) > 0:  # Only plot if we have data
+            colors = [category_colors.get(cat, '#808080') for cat in categories_summary.index]
+            if colors:  # Only plot if we have colors
+                categories_summary.plot(
+                    kind='pie',
+                    ax=axs[1],
+                    autopct=lambda pct: viz.format_value(pct, categories_summary.sum()),
+                    title='Time by Category',
+                    ylabel='',
+                    colors=colors,
+                    explode=explode,
+                    shadow=bool(viz.selected_category)
+                )
 
         # Create bar chart - pass the full df instead of filtered_df
         create_history_chart(df, current_date[0], current_span[0], axs[2])
@@ -328,21 +380,45 @@ def display_visualization(data):
         """Create a minimal bar chart showing total screen time for the last HISTORY_PERIODS"""
         dates = []
         current = start_date
-        for _ in range(HISTORY_PERIODS):
+        
+        # Add the current date and future dates
+        for i in range(EMPTY_PERIODS + 1):  # +1 to include current date
             dates.append(current)
+            if span == "Day":
+                current = current + timedelta(days=1)
+            elif span == "Week":
+                current = current + timedelta(weeks=1)
+            elif span == "Month":
+                year = current.year
+                month = current.month + 1
+                if month > 12:
+                    year += 1
+                    month = 1
+                _, last_day = calendar.monthrange(year, month)
+                day = min(current.day, last_day)
+                current = current.replace(year=year, month=month, day=day)
+            else:  # Year
+                current = current.replace(year=current.year + 1)
+        
+        # Then go back from start_date to add past periods
+        current = start_date
+        for _ in range(HISTORY_PERIODS - EMPTY_PERIODS - 1):
             if span == "Day":
                 current = current - timedelta(days=1)
             elif span == "Week":
                 current = current - timedelta(weeks=1)
             elif span == "Month":
-                if current.month == 1:
-                    current = current.replace(year=current.year - 1, month=12)
-                else:
-                    current = current.replace(month=current.month - 1)
+                year = current.year
+                month = current.month - 1
+                if month == 0:
+                    year -= 1
+                    month = 12
+                _, last_day = calendar.monthrange(year, month)
+                day = min(current.day, last_day)
+                current = current.replace(year=year, month=month, day=day)
             else:  # Year
                 current = current.replace(year=current.year - 1)
-        
-        dates.reverse()
+            dates.insert(0, current)
         
         # Get total screen time for each period
         totals = []
@@ -351,9 +427,20 @@ def display_visualization(data):
             period_data = df[(df["Date"] >= period_start) & (df["Date"] <= period_end)]
             total_minutes = period_data["Time Spent"].sum()
             totals.append(total_minutes)
+
+        # Avoid division by zero
+        if not any(totals):  # If all totals are 0
+            totals = [0] * len(dates)  # Keep the zeros but avoid the warning
         
-        # Create minimal bar chart with thinner bars
+        # Create minimal bar chart with thinner bars and highlight selected date
         bars = ax.bar(range(len(totals)), totals, width=0.5)
+        
+        # Set colors - darker for selected date
+        for i, bar in enumerate(bars):
+            if dates[i] == start_date:
+                bar.set_color('#0d47a1')  # Much darker blue for selected date
+            else:
+                bar.set_color('#63a7e3')  # Lighter blue for other dates
         
         # Remove all decorations
         ax.set_xticks([])
@@ -525,6 +612,9 @@ def display_visualization(data):
     )
     display_checkbox.state(['!selected', '!alternate'])
     display_checkbox.pack(side=tk.RIGHT, padx=10)
+
+    # Connect the click handler once, outside of update_visualization
+    fig.canvas.mpl_connect('button_press_event', on_category_click)
 
     # Initialize Visualization
     update_visualization()

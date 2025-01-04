@@ -160,7 +160,7 @@ def insert_sample_data():
             "weekday": (45, 90),
             "weekend": (90, 180)
         },
-        "Clash Royale": {
+        "YouTube": {
             "weekday": (30, 60),
             "weekend": (60, 120)
         },
