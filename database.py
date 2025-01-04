@@ -214,7 +214,12 @@ def fetch_categories():
     """Fetch all categories with their colors"""
     with sqlite3.connect(get_db_path()) as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT DISTINCT name, color FROM categories ORDER BY name')
+        cursor.execute('''
+            SELECT name, color 
+            FROM categories 
+            GROUP BY name 
+            ORDER BY name
+        ''')
         return cursor.fetchall()
 
 def toggle_app_favorite(app_name):

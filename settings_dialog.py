@@ -6,13 +6,14 @@ class SettingsDialog:
     def __init__(self, parent):
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Settings")
-        self.dialog.geometry("400x500")
+        self.dialog.geometry("500x600")
+        self.dialog.minsize(450, 500)
         self.dialog.transient(parent)
         self.dialog.grab_set()
 
         # Create notebook for tabs
         notebook = ttk.Notebook(self.dialog)
-        notebook.pack(fill='both', expand=True, padx=10, pady=5)
+        notebook.pack(fill='both', expand=True, padx=5, pady=5)
 
         # Apps tab (first)
         apps_frame = ttk.Frame(notebook)
@@ -39,17 +40,12 @@ class SettingsDialog:
         self.apps_tree.heading('name', text='App Name')
         self.apps_tree.heading('category', text='Category')
         
-        self.apps_tree.column('favorite', width=30, anchor='center')
-        self.apps_tree.column('name', width=150)
-        self.apps_tree.column('category', width=100)
+        self.apps_tree.column('favorite', width=30, anchor='center', minwidth=30)
+        self.apps_tree.column('name', width=150, minwidth=100)
+        self.apps_tree.column('category', width=100, minwidth=80)
         
         # Bind double-click to toggle favorite
         self.apps_tree.bind('<Double-1>', self.toggle_favorite)
-        
-        # Bind mousewheel to Treeview only
-        def _on_mousewheel(event):
-            self.apps_tree.yview_scroll(int(-1*(event.delta/120)), "units")
-        self.apps_tree.bind('<MouseWheel>', _on_mousewheel)
         
         # Pack tree and scrollbar
         self.apps_tree.pack(side='left', fill='both', expand=True)
@@ -59,22 +55,33 @@ class SettingsDialog:
         add_frame = ttk.LabelFrame(parent, text="Add New App", padding=10)
         add_frame.pack(fill='x', padx=5, pady=5)
         
-        ttk.Label(add_frame, text="Name:").pack(side='left')
-        self.app_entry = ttk.Entry(add_frame, width=20)
-        self.app_entry.pack(side='left', padx=5)
+        # Create a container frame for input fields
+        input_container = ttk.Frame(add_frame)
+        input_container.pack(fill='x', expand=True)
         
-        ttk.Label(add_frame, text="Category:").pack(side='left')
+        # Left side: Name input
+        name_frame = ttk.Frame(input_container)
+        name_frame.pack(side='left', fill='x', expand=True)
+        ttk.Label(name_frame, text="Name:").pack(side='left')
+        self.app_entry = ttk.Entry(name_frame, width=20)
+        self.app_entry.pack(side='left', padx=5, fill='x', expand=True)
+        
+        # Right side: Category selection and Add button
+        category_frame = ttk.Frame(input_container)
+        category_frame.pack(side='left', fill='x')
+        ttk.Label(category_frame, text="Category:").pack(side='left')
         self.category_var = tk.StringVar()
-        self.category_combo = ttk.Combobox(add_frame, 
+        self.category_combo = ttk.Combobox(category_frame, 
                                          textvariable=self.category_var,
                                          state='readonly',
                                          width=15)
         self.category_combo.pack(side='left', padx=5)
-        self.refresh_category_combo()
         
-        ttk.Button(add_frame, text="Add", 
+        # Add button
+        ttk.Button(category_frame, text="Add", 
                   command=self.add_new_app).pack(side='left', padx=5)
         
+        self.refresh_category_combo()
         self.refresh_apps()
 
     def setup_categories_tab(self, parent):
@@ -126,25 +133,29 @@ class SettingsDialog:
         return canvas
 
     def refresh_categories(self):
+        # Clear existing items and tags
         for item in self.categories_tree.get_children():
             self.categories_tree.delete(item)
         
         categories = fetch_categories()
+        seen_categories = set()  # Track categories we've already added
+        
         for name, color in categories:
+            if name in seen_categories:
+                continue
+                
+            seen_categories.add(name)
             item = self.categories_tree.insert('', 'end', values=(
                 name, 
                 color,
-                '■'  # Use a colored square symbol
+                '■'
             ))
-
-            name_tag = f'name_{name}'
-            self.categories_tree.tag_configure(name_tag, foreground='black')
-            self.categories_tree.item(item, tags=(name_tag,))
-
-            # Only color the preview column
-            self.categories_tree.tag_configure(f'preview_{color}', foreground=color)
+            
+            # Apply color to preview symbol only
+            preview_tag = f'preview_{name}'
+            self.categories_tree.tag_configure(preview_tag, foreground=color)
             self.categories_tree.set(item, 'preview', '■')
-            self.categories_tree.item(item, tags=(f'preview_{color}',))
+            self.categories_tree.item(item, tags=(preview_tag,))
 
     def refresh_apps(self):
         # Clear existing items
