@@ -46,6 +46,11 @@ class SettingsDialog:
         # Bind double-click to toggle favorite
         self.apps_tree.bind('<Double-1>', self.toggle_favorite)
         
+        # Bind mousewheel to Treeview only
+        def _on_mousewheel(event):
+            self.apps_tree.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.apps_tree.bind('<MouseWheel>', _on_mousewheel)
+        
         # Pack tree and scrollbar
         self.apps_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
@@ -156,7 +161,8 @@ class SettingsDialog:
             ))
 
     def refresh_category_combo(self):
-        self.category_combo['values'] = fetch_categories()
+        categories = fetch_categories()
+        self.category_combo['values'] = [name for name, _ in categories]  # Only use category names
 
     def add_new_category(self):
         category_name = self.category_entry.get().strip()

@@ -12,7 +12,8 @@ from database import (
     insert_sample_data,
     clear_screen_time_data,
     get_db_config,
-    get_db_path
+    get_db_path,
+    fetch_apps_with_categories
 )
 from visualizer import display_visualization
 import sqlite3
@@ -61,9 +62,9 @@ class ScreenTimeTracker:
                     add_app(app_name, category_id)
 
     def refresh_app_list(self):
-        """Refresh the app list in the combobox"""
-        apps = fetch_apps()
-        self.app_combobox['values'] = apps
+        apps = [app[0] for app in fetch_apps_with_categories()]  # Get just the app names
+        if hasattr(self, 'app_combobox'):  # Check if combobox exists
+            self.app_combobox['values'] = apps
 
     def create_input_frame(self):
         # Main frame
@@ -104,9 +105,10 @@ class ScreenTimeTracker:
             messagebox.showinfo("Info", "No data to visualize!")
 
     def open_settings(self):
-        SettingsDialog(self.root)
-        # Refresh app list after settings dialog is closed
-        self.refresh_app_list()
+        settings = SettingsDialog(self.root)
+        settings.dialog.wait_window()  # Wait for the settings dialog to close
+        if hasattr(self, 'app_combobox'):  # Only refresh if combobox exists
+            self.refresh_app_list()
 
     def submit_data(self):
         app_name = self.app_combobox.get()
