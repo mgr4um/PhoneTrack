@@ -80,14 +80,22 @@ class BatchEntryDialog:
 
         # Add mousewheel scrolling
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                # Get current scroll position
+                current_pos = canvas.yview()
+                # Scrolling up (event.delta > 0) only if not at top
+                # Scrolling down (event.delta < 0) always allowed
+                if event.delta < 0 or current_pos[0] > 0:
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass  # Ignore errors if canvas is destroyed
 
-        # Bind mousewheel to canvas
+        # Bind mousewheel to canvas only
         canvas.bind("<MouseWheel>", _on_mousewheel)
         
         # Unbind when dialog is closed
         self.dialog.protocol("WM_DELETE_WINDOW", lambda: (
-            canvas.unbind_all("<MouseWheel>"), 
+            canvas.unbind("<MouseWheel>"),
             self.dialog.destroy()
         ))
 
