@@ -9,11 +9,12 @@ def init_db():
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Categories table
+    # Categories table with color column
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL UNIQUE
+            name TEXT NOT NULL UNIQUE,
+            color TEXT DEFAULT '#808080'  -- Default gray color
         )
     ''')
     
@@ -42,21 +43,24 @@ def init_db():
     conn.commit()
     conn.close()
 
-def add_category(name):
+def add_category(name, color='#808080'):
     try:
         with sqlite3.connect(get_db_path()) as conn:
             cursor = conn.cursor()
-            cursor.execute('INSERT INTO categories (name) VALUES (?)', (name,))
+            cursor.execute('INSERT INTO categories (name, color) VALUES (?, ?)', (name, color))
             category_id = cursor.lastrowid
             conn.commit()
             return category_id
     except sqlite3.IntegrityError:
         # If category already exists, fetch its id
-        with sqlite3.connect(get_db_path()) as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT id FROM categories WHERE name = ?', (name,))
-            result = cursor.fetchone()
-            return result[0] if result else None
+        return get_category_id(name)
+
+def update_category_color(name, color):
+    """Update category color"""
+    with sqlite3.connect(get_db_path()) as conn:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE categories SET color = ? WHERE name = ?', (color, name))
+        conn.commit()
 
 def add_app(name, category_id):
     try:
@@ -207,11 +211,11 @@ def insert_sample_data():
         conn.commit()
 
 def fetch_categories():
-    """Fetch all unique category names"""
+    """Fetch all categories with their colors"""
     with sqlite3.connect(get_db_path()) as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT DISTINCT name FROM categories ORDER BY name')
-        return [row[0] for row in cursor.fetchall()]
+        cursor.execute('SELECT DISTINCT name, color FROM categories ORDER BY name')
+        return cursor.fetchall()
 
 def toggle_app_favorite(app_name):
     """Toggle favorite status for an app"""

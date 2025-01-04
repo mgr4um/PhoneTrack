@@ -1,6 +1,6 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from database import add_category, add_app, get_category_id, fetch_apps_with_categories, fetch_categories, toggle_app_favorite
+from tkinter import ttk, messagebox, colorchooser
+from database import add_category, add_app, get_category_id, fetch_apps_with_categories, fetch_categories, toggle_app_favorite, update_category_color
 
 class SettingsDialog:
     def __init__(self, parent):
@@ -77,16 +77,27 @@ class SettingsDialog:
         list_frame = ttk.Frame(parent)
         list_frame.pack(fill='both', expand=True, pady=5)
         
-        scrollbar = ttk.Scrollbar(list_frame)
+        # Create Treeview for categories
+        self.categories_tree = ttk.Treeview(list_frame, columns=('name', 'color', 'preview'), show='headings')
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.categories_tree.yview)
+        self.categories_tree.configure(yscrollcommand=scrollbar.set)
+        
+        # Define columns
+        self.categories_tree.heading('name', text='Category Name')
+        self.categories_tree.heading('color', text='Color Code')  # Keep the heading but hide the column
+        self.categories_tree.heading('preview', text='Color')
+        
+        self.categories_tree.column('name', width=200)
+        self.categories_tree.column('color', width=0, minwidth=0, stretch=False)  # Hide the column by setting width to 0
+        self.categories_tree.column('preview', width=50, anchor='center')
+        
+        # Bind double-click to color picker
+        self.categories_tree.bind('<Double-1>', self.pick_color)
+        
+        # Pack tree and scrollbar
+        self.categories_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
-        self.categories_list = tk.Listbox(list_frame, width=30, height=10,
-                                        yscrollcommand=scrollbar.set)
-        self.categories_list.pack(side='left', fill='both', expand=True)
-        scrollbar.config(command=self.categories_list.yview)
-        
-        self.refresh_categories()
-
         # Add category frame
         add_frame = ttk.LabelFrame(parent, text="Add New Category", padding=10)
         add_frame.pack(fill='x', padx=5, pady=5)
@@ -98,10 +109,32 @@ class SettingsDialog:
         ttk.Button(add_frame, text="Add", 
                   command=self.add_new_category).pack(side='left', padx=5)
 
+        # Add help text
+        help_text = "Double-click a category to change its color"
+        ttk.Label(parent, text=help_text, font=('Arial', 9, 'italic')).pack(pady=5)
+
+        self.refresh_categories()
+
+    def create_color_preview(self, color):
+        """Create a colored rectangle for preview"""
+        canvas = tk.Canvas(self.categories_tree, width=20, height=20, bg=color)
+        return canvas
+
     def refresh_categories(self):
-        self.categories_list.delete(0, tk.END)
-        for category in fetch_categories():
-            self.categories_list.insert(tk.END, category)
+        for item in self.categories_tree.get_children():
+            self.categories_tree.delete(item)
+        
+        categories = fetch_categories()
+        for name, color in categories:
+            item = self.categories_tree.insert('', 'end', values=(
+                name, 
+                color,
+                '■'  # Use a colored square symbol
+            ))
+            # Only color the preview column
+            self.categories_tree.tag_configure(f'preview_{color}', foreground=color)
+            self.categories_tree.set(item, 'preview', '■')
+            self.categories_tree.item(item, tags=(f'preview_{color}',))
 
     def refresh_apps(self):
         # Clear existing items
@@ -155,3 +188,19 @@ class SettingsDialog:
             # Update the star in the tree
             new_star = '☆' if values[0] == '⭐' else '⭐'
             self.apps_tree.set(item, 'favorite', new_star) 
+
+    def pick_color(self, event):
+        item = self.categories_tree.selection()[0]
+        category = self.categories_tree.item(item)['values'][0]
+        current_color = self.categories_tree.item(item)['values'][1]
+        
+        color = colorchooser.askcolor(
+            color=current_color,
+            title=f"Pick color for {category}",
+            parent=self.dialog
+        )
+        
+        if color[1]:  # If color was selected
+            update_category_color(category, color[1])
+            self.refresh_categories()
+            self.refresh_category_combo()  # Refresh combo box in apps tab 

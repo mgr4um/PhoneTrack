@@ -7,6 +7,7 @@ from utils import format_date_for_display
 from datetime import datetime, timedelta
 from tkcalendar import DateEntry
 import calendar
+from database import fetch_categories
 
 # Constants for visualization
 INITIAL_ITEMS_SHOWN = 5      # Number of items shown initially in lists
@@ -254,13 +255,18 @@ def display_visualization(data):
             ylabel=''
         )
 
-        # Categories pie chart
+        # Get category colors
+        categories = fetch_categories()
+        category_colors = {name: color for name, color in categories}
+
+        # Categories pie chart with colors
         categories_summary.plot(
             kind='pie',
             ax=axs[1],
             autopct=lambda pct: viz.format_value(pct, categories_summary.sum()),
             title='Time by Category',
-            ylabel=''
+            ylabel='',
+            colors=[category_colors.get(cat, '#808080') for cat in categories_summary.index]
         )
 
         plt.tight_layout()

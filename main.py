@@ -60,6 +60,11 @@ class ScreenTimeTracker:
                 for app_name in apps:
                     add_app(app_name, category_id)
 
+    def refresh_app_list(self):
+        """Refresh the app list in the combobox"""
+        apps = fetch_apps()
+        self.app_combobox['values'] = apps
+
     def create_input_frame(self):
         # Main frame
         main_frame = ttk.Frame(self.root, padding="10")
@@ -100,6 +105,8 @@ class ScreenTimeTracker:
 
     def open_settings(self):
         SettingsDialog(self.root)
+        # Refresh app list after settings dialog is closed
+        self.refresh_app_list()
 
     def submit_data(self):
         app_name = self.app_combobox.get()
