@@ -16,7 +16,7 @@ WINDOW_WIDTH = 960          # Main window width
 WINDOW_HEIGHT = 800          # Main window height
 CANVAS_WIDTH = 960           # Scrollable canvas width
 CHART_SIZE = (9, 4)         # Size of the figure for charts (width, height)
-BAR_CHART_SIZE = (4, 1)     # Size of the bar chart figure
+HISTORY_CHART_SIZE = (9, 1)     # Size of the bar chart figure
 HISTORY_PERIODS = 7         # Number of periods to show in history
 TITLE_FONT = ("Arial", 16, "bold")
 SUBTITLE_FONT = ("Arial", 14)
@@ -473,7 +473,7 @@ def display_visualization(data):
     plot_frame.pack(fill=tk.BOTH, expand=True)
 
     # Create figure with two pie charts side by side and bar chart below
-    fig = plt.figure(figsize=(9, 8))  # Increased height to accommodate bar chart
+    fig = plt.figure(figsize=CHART_SIZE)
     
     # Create grid for subplots with smaller bar chart
     gs = fig.add_gridspec(2, 2, height_ratios=[4, 1])  # Changed ratio to make bar chart smaller
