@@ -33,8 +33,11 @@ class ScreenTimeTracker:
         title = "Screen Time Tracker"
         if get_db_config()['sample_data']:
             title += " [DEBUG MODE]"
-            # Optional: Change background color in debug mode
-            self.root.configure(bg='red')  # or any other distinctive color
+            # Make debug mode more noticeable
+            self.root.configure(bg='red')  # Brighter red background
+            style = ttk.Style()
+            style.configure('Debug.TFrame', background='red')
+            style.configure('Debug.TLabel', background='red')
             
         self.root.title(title)
         
@@ -67,11 +70,16 @@ class ScreenTimeTracker:
 
     def create_input_frame(self):
         # Main frame
-        main_frame = ttk.Frame(self.root, padding="10")
+        if get_db_config()['sample_data']:
+            main_frame = ttk.Frame(self.root, padding="10", style='Debug.TFrame')
+            button_frame = ttk.Frame(main_frame, style='Debug.TFrame')
+        else:
+            main_frame = ttk.Frame(self.root, padding="10")
+            button_frame = ttk.Frame(main_frame)
+            
         main_frame.grid(row=0, column=0, sticky="nsew")
 
         # Button frame
-        button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill='x', pady=5)
         
         ttk.Button(button_frame, text="Batch Entry", 
