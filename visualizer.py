@@ -172,7 +172,7 @@ def display_visualization(data):
     time_spans = ["Day", "Week", "Month", "Year"]
     current_span = ["Day"]  # Use list to make it mutable
 
-    def create_expandable_list(parent, items, title, total_time):
+    def create_expandable_list(parent, items, title, total_time, filtered_df):
         frame = ttk.LabelFrame(parent, text=title, padding=10)
         items_frame = ttk.Frame(frame)
         items_frame.pack(fill=tk.X, expand=True)
@@ -184,9 +184,14 @@ def display_visualization(data):
             for widget in items_frame.winfo_children():
                 widget.destroy()
             
+            # Calculate the total time for percentage calculation
+            start_date, end_date = get_date_range(current_date[0], current_span[0])
+            period_df = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
+            total_for_percentage = period_df["Time Spent"].sum()
+            
             # Show items up to current limit
             for item, time in list(items.items())[:shown_items[0]]:
-                percentage = (time / total_time) * 100 if total_time > 0 else 0
+                percentage = (time / total_for_percentage) * 100 if total_for_percentage > 0 else 0
                 ttk.Label(items_frame, 
                          text=f"{item}: {format_time(time)} ({percentage:.1f}%)", 
                          font=NORMAL_FONT).pack(anchor="w")
@@ -285,12 +290,12 @@ def display_visualization(data):
         columns_frame = ttk.Frame(summary_frame)
         columns_frame.pack(fill=tk.X, expand=True, padx=10, anchor="n")
 
-        # Apps summary (left column) - use full apps_summary
-        apps_frame = create_expandable_list(columns_frame, apps_summary, "Top Apps", total_time)
+        # Apps summary (left column)
+        apps_frame = create_expandable_list(columns_frame, apps_summary, "Top Apps", total_time, filtered_df)
         apps_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, anchor="n")
 
         # Categories summary (right column)
-        categories_frame = create_expandable_list(columns_frame, categories_summary, "Top Categories", total_time)
+        categories_frame = create_expandable_list(columns_frame, categories_summary, "Top Categories", total_time, filtered_df)
         categories_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, anchor="n")
 
         # Update the plots
