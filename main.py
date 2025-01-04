@@ -7,7 +7,6 @@ from database import (
     add_app, 
     add_screen_time, 
     fetch_screen_time_data,
-    fetch_apps,
     fetch_app_names,
     insert_sample_data,
     clear_screen_time_data,

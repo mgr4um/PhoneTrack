@@ -16,12 +16,14 @@ WINDOW_WIDTH = 960          # Main window width
 WINDOW_HEIGHT = 800          # Main window height
 CANVAS_WIDTH = 960           # Scrollable canvas width
 CHART_SIZE = (9, 4)         # Size of the figure for charts (width, height)
+BAR_CHART_SIZE = (4, 1)     # Size of the bar chart figure
+HISTORY_PERIODS = 7         # Number of periods to show in history
 TITLE_FONT = ("Arial", 16, "bold")
 SUBTITLE_FONT = ("Arial", 14)
 NORMAL_FONT = ("Arial", 10)
 DATE_FORMAT = "dd/mm/yyyy"   # Format for date picker
 TIME_SPANS = ["Day", "Week", "Month", "Year"]
-PIE_CHART_THRESHOLD = 2.5      # Percentage threshold for grouping small values in pie chart
+PIE_CHART_THRESHOLD = 2.5    # Percentage threshold for grouping small values in pie chart
 
 def format_time(minutes):
     """
@@ -269,6 +271,9 @@ def display_visualization(data):
             colors=[category_colors.get(cat, '#808080') for cat in categories_summary.index]
         )
 
+        # Create bar chart - pass the full df instead of filtered_df
+        create_history_chart(df, current_date[0], current_span[0], axs[2])
+
         plt.tight_layout()
         canvas.draw()
 
@@ -307,6 +312,76 @@ def display_visualization(data):
             current_date[0] = current_date[0].replace(year=current_date[0].year + 1)
         update_date_picker()
         update_visualization()
+
+    def create_history_chart(df, start_date, span, ax):
+        """Create a minimal bar chart showing total screen time for the last HISTORY_PERIODS"""
+        dates = []
+        current = start_date
+        for _ in range(HISTORY_PERIODS):
+            dates.append(current)
+            if span == "Day":
+                current = current - timedelta(days=1)
+            elif span == "Week":
+                current = current - timedelta(weeks=1)
+            elif span == "Month":
+                if current.month == 1:
+                    current = current.replace(year=current.year - 1, month=12)
+                else:
+                    current = current.replace(month=current.month - 1)
+            else:  # Year
+                current = current.replace(year=current.year - 1)
+        
+        dates.reverse()
+        
+        # Get total screen time for each period
+        totals = []
+        for date in dates:
+            period_start, period_end = get_date_range(date, span)
+            period_data = df[(df["Date"] >= period_start) & (df["Date"] <= period_end)]
+            total_minutes = period_data["Time Spent"].sum()
+            totals.append(total_minutes)
+        
+        # Create minimal bar chart with thinner bars
+        bars = ax.bar(range(len(totals)), totals, width=0.5)
+        
+        # Remove all decorations
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+        # Add tooltips
+        def hover(event):
+            # Clear previous tooltip
+            for txt in ax.texts:
+                txt.remove()
+            
+            if event.inaxes == ax:
+                for i, bar in enumerate(bars):
+                    contains, _ = bar.contains(event)
+                    if contains:
+                        # Format date based on span
+                        if span == "Day":
+                            date_str = dates[i].strftime("%d/%m/%Y")
+                        elif span == "Week":
+                            date_str = f"Week {dates[i].isocalendar()[1]}, {dates[i].year}"
+                        elif span == "Month":
+                            date_str = dates[i].strftime("%B %Y")
+                        else:  # Year
+                            date_str = str(dates[i].year)
+                        
+                        # Position tooltip above the bar
+                        tooltip_text = f"{date_str}\n{format_time(totals[i])}"
+                        ax.text(i, totals[i], tooltip_text,
+                               ha='center', va='bottom',
+                               fontsize=8,
+                               bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
+            
+            event.canvas.draw_idle()
+
+        fig.canvas.mpl_connect('motion_notify_event', hover)
 
     # Create a Tkinter Window
     window = tk.Toplevel()
@@ -397,8 +472,21 @@ def display_visualization(data):
     plot_frame = ttk.Frame(main_container, padding=10)
     plot_frame.pack(fill=tk.BOTH, expand=True)
 
-    # Create figure with two pie charts side by side - smaller size
-    fig, axs = plt.subplots(1, 2, figsize=CHART_SIZE)
+    # Create figure with two pie charts side by side and bar chart below
+    fig = plt.figure(figsize=(9, 8))  # Increased height to accommodate bar chart
+    
+    # Create grid for subplots with smaller bar chart
+    gs = fig.add_gridspec(2, 2, height_ratios=[4, 1])  # Changed ratio to make bar chart smaller
+    
+    # Create axes for pie charts (top row)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    
+    # Create axis for bar chart (bottom row, spans both columns)
+    ax3 = fig.add_subplot(gs[1, :])
+    
+    # Store axes in list for easy access
+    axs = [ax1, ax2, ax3]
     
     # Embed Plot in Tkinter
     canvas = FigureCanvasTkAgg(fig, master=plot_frame)
