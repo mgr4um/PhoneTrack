@@ -183,16 +183,27 @@ def display_visualization(data):
                          text=f"{item}: {format_time(time)} ({percentage:.1f}%)", 
                          font=NORMAL_FONT).pack(anchor="w")
             
-            # Show "Show More" button if there are more items
+            # Show buttons based on current state
+            buttons_frame = ttk.Frame(items_frame)
+            buttons_frame.pack(pady=5)
+            
             if shown_items[0] < len(items):
                 def show_more():
                     shown_items[0] += ITEMS_PER_EXPANSION
                     show_items()
                 
                 remaining = len(items) - shown_items[0]
-                ttk.Button(items_frame, 
+                ttk.Button(buttons_frame, 
                           text=f"Show More ({remaining} remaining)", 
-                          command=show_more).pack(pady=5)
+                          command=show_more).pack(side='left', padx=2)
+            
+            if shown_items[0] > INITIAL_ITEMS_SHOWN:
+                def show_less():
+                    shown_items[0] = INITIAL_ITEMS_SHOWN
+                    show_items()
+                
+                ttk.Button(buttons_frame, text="Show Less", 
+                          command=show_less).pack(side='left', padx=2)
         
         show_items()
         return frame
