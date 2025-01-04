@@ -17,7 +17,7 @@ WINDOW_HEIGHT = 800          # Main window height
 CANVAS_WIDTH = 960           # Scrollable canvas width
 CHART_SIZE = (9, 4)         # Size of the figure for charts (width, height)
 HISTORY_CHART_SIZE = (9, 1)     # Size of the bar chart figure
-HISTORY_PERIODS = 7         # Number of periods to show in history
+HISTORY_PERIODS = 10         # Number of periods to show in history
 TITLE_FONT = ("Arial", 16, "bold")
 SUBTITLE_FONT = ("Arial", 14)
 NORMAL_FONT = ("Arial", 10)
@@ -352,7 +352,7 @@ def display_visualization(data):
         ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
 
-        # Add tooltips
+        # Add tooltips and click handling
         def hover(event):
             # Clear previous tooltip
             for txt in ax.texts:
@@ -381,7 +381,19 @@ def display_visualization(data):
             
             event.canvas.draw_idle()
 
+        def on_click(event):
+            if event.inaxes == ax:
+                for i, bar in enumerate(bars):
+                    contains, _ = bar.contains(event)
+                    if contains:
+                        # Update current date to the clicked bar's date
+                        current_date[0] = dates[i]
+                        update_date_picker()
+                        update_visualization()
+                        break
+
         fig.canvas.mpl_connect('motion_notify_event', hover)
+        fig.canvas.mpl_connect('button_press_event', on_click)
 
     # Create a Tkinter Window
     window = tk.Toplevel()
