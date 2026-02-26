@@ -20,6 +20,7 @@ from utils import format_date_for_db
 from batch_entry import BatchEntryDialog
 from settings_dialog import SettingsDialog
 from app_config import APP_CONFIG
+from import_dialog import ImportDialog
 
 # Initialize Database
 init_db()
@@ -84,6 +85,8 @@ class ScreenTimeTracker:
         
         ttk.Button(button_frame, text="Batch Entry", 
                   command=self.open_batch_entry).pack(side='left', padx=5)
+        ttk.Button(button_frame, text="Import", 
+                  command=self.open_import).pack(side='left', padx=5)
         ttk.Button(button_frame, text="⚙", width=3,
                   command=self.open_settings).pack(side='left', padx=5)
         ttk.Button(button_frame, text="Visualize", 
@@ -92,6 +95,10 @@ class ScreenTimeTracker:
     def open_batch_entry(self):
         app_names = fetch_app_names()  # Use new function that returns just names
         BatchEntryDialog(self.root, app_names, self.submit_single_entry)
+
+    def open_import(self):
+        ImportDialog(self.root)
+
 
     def submit_single_entry(self, app_name, time_spent, date):
         conn = sqlite3.connect(get_db_path())
