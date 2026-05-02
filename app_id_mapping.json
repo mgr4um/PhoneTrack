@@ -30,5 +30,21 @@
   "mobi.caixaguissona.sign.app": "CaixaGuissona",
   "com.android.vending": "Google Play Store",
   "com.coloros.video": "Videos",
-  "com.google.android.calendar": "Agenda"
+  "com.google.android.calendar": "Calendari",
+  "com.android.contacts": "Agenda",
+  "com.android.mms": "Missatges",
+  "com.android.phone": "Telefon",
+  "com.android.settings": "Settings",
+  "com.android.systemui": "Settings",
+  "com.coloros.filemanager": "Fitxers",
+  "com.coloros.wirelesssettings": "Settings",
+  "com.google.android.apps.paidtasks": "Google Opinion Rewards",
+  "com.google.android.gms": "Google Play Store",
+  "com.gsma.mwcapp": "MWC",
+  "com.orux.oruxmaps": "OruxMaps",
+  "com.ovelin.guitartuna": "Tabs",
+  "com.revolut.revolut": "Banc",
+  "com.spotify.music": "Spotify",
+  "com.ultimateguitar.tabs": "Tabs",
+  "org.readera": "ReadEra"
 }
